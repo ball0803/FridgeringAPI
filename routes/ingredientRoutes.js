@@ -52,7 +52,15 @@ router.delete("/delete_common_ingredient", async(req, res)=>{
 });
 
 // search for common ingredients by name
-router.get("/search_common_ingredients", async(req, res)=>{
+router.get("/common_ingredients/search", async(req, res)=>{
+    const { name } = req.query;
+    const docRef = db.collection('Ingredient');
+    try {
+        const response = await docRef.limit(100).get();
+        res.status(200).send({ status: "OK", data: response.docs.map(doc => doc.data()) });
+    } catch (error) {
+        res.status(400).send({ status: "ERROR", data: "", error: error.toString() });
+    }
 });
 
 // add user ingredient to the user list

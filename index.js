@@ -1,5 +1,6 @@
 const userRoutes = require('./routes/userRoutes');
 const ingredientRoutes = require('./routes/ingredientRoutes');
+const recipeRoutes = require('./routes/recipeRoutes');
 
 const express = require("express");
 const cors = require('cors');
@@ -11,6 +12,7 @@ const allowedOrigins = ['http://localhost:3000', 'https://example.com'];
 app.use(express.json())
 app.use(userRoutes);
 app.use(ingredientRoutes);
+app.use(recipeRoutes);
 
 app.use(cors({
   origin: function(origin, callback){
