@@ -31,8 +31,8 @@ app.listen(PORT, ()=>
     console.log(`Server running on  http://localhost:${PORT}`)
 )
 
-app.get("/", async(req, res)=>{
-    res.send("Hello World")
+app.get("/", (req, res)=>{
+      res.status(200).send("Hello World")
 })
 
 

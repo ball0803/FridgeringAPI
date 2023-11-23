@@ -3,18 +3,22 @@ const db = require('../firebaseInit');
 const router = express.Router();
 const Joi = require('joi');
 const algoliasearch = require('algoliasearch');
-const client = algoliasearch('KR6AEAAQVV', '6f398449e3fa0385e526c3e8df960bb9');
+const client = algoliasearch('KR6AEAAQVV', '14c2bf68187cae21dfce2cab13e74ba9');
 const index = client.initIndex('Ingredient');
 async function indexData() {
-    const docRef = db.collection('Ingredient');
-    const snapshot = await docRef.get();
-    const batch = snapshot.docs.map(doc => {
-        let data = doc.data();
-        data.objectID = doc.id;
-        return data;
-    });
+    try {
+        const docRef = db.collection('Ingredient');
+        const snapshot = await docRef.get();
+        const batch = snapshot.docs.map(doc => {
+            let data = doc.data();
+            data.objectID = doc.id;
+            return data;
+        });
 
-    index.saveObjects(batch);
+        await index.saveObjects(batch); // add await here if saveObjects returns a promise
+    } catch (error) {
+        console.error('Error indexing data:', error);
+    }
 }
 
 indexData();
@@ -78,8 +82,11 @@ router.post("/common_ingredient", async(req, res)=>{
     }
     const docRef = db.collection('Ingredient').doc()
     try {
-        const response = await docRef.set(payload);
-        res.status(200).send({ status: "OK", data: response });
+        const response = await docRef.set(payload).then(() => {
+            res.status(200).send({ status: "OK", data: response });
+        }).catch(error => {
+            res.status(400).send({ status: "ERROR", data: "", error: error.toString() });
+        });
     } catch (error) {
         res.status(400).send({ status: "ERROR", data: "", error: error.toString() });
     }
@@ -188,8 +195,12 @@ router.put("/user/:userID/ingredients/:ndbNumber", async(req, res) => {
     if (unit !== undefined) payload.unit = unit;
 
     const docRef = db.collection('Users').doc();
-    try{
-        const response = await docRef.where("userID", "==", userID).collection("Ingredient").doc().where("ndbNumber", "=", ndbNumber ).update(payload);
+    try {
+        const response = await docRef.where("userID", "==", userID).collection("Ingredient").doc().where("ndbNumber", "=", ndbNumber ).update(payload)
+        .catch(error => {
+            console.error(error);
+            res.status(400).send({ status: "ERROR", error: error.toString() });
+        });
         res.status(200).send({ status: "OK", data: response });
     } catch (error) {
         res.status(400).send({ status: "ERROR", error: error.toString() });
@@ -200,8 +211,12 @@ router.put("/user/:userID/ingredients/:ndbNumber", async(req, res) => {
 router.delete("/user/:userID/ingredients/:ndbNumber", async(req, res) => {
     const { userID, ndbNumber } = req.params;
     const docRef = db.collection('Users').doc();
-    try{
-        const response = await docRef.where("userID", "==", userID).collection("Ingredient").doc().where("ndbNumber", "=", ndbNumber ).delete();
+    try {
+        const response = await docRef.where("userID", "==", userID).collection("Ingredient").doc().where("ndbNumber", "=", ndbNumber ).delete()
+        .catch(error => {
+            console.error(error);
+            res.status(400).send({ status: "ERROR", error: error.toString() });
+        });
         res.status(200).send({ status: "OK", data: response });
     } catch (error) {
         res.status(400).send({ status: "ERROR", error: error.toString() });

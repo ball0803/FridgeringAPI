@@ -9,11 +9,14 @@ const schema = Joi.object({
     name: Joi.string().required(),
     image: Joi.string().required(),
     email: Joi.string().email().required(),
-    preferences: Joi.array().items(Joi.string())
+    preferences: Joi.object( {
+        dietaryRestriction: Joi.array().items(Joi.string()),
+        expireNotification: Joi.number().integer().min(0).max(7),
+    })
 });
 
 // register with google account if ID does not exist
-router.post("/register", async(req, res) => {
+router.post("/user/register", async(req, res) => {
     const { error } = schema.validate(req.body, { abortEarly: false });
     if (error) {
         const errors = error.details.map(err => err.message);
@@ -30,7 +33,7 @@ router.post("/register", async(req, res) => {
     };
 
     try {
-        const userRef = db.collection('User').doc(userID);
+        const userRef = db.collection('Users').doc(userID);
         const response = await userRef.set(payload);
         res.status(200).send({ status: "OK", data: response });
     } catch (error) {
@@ -39,25 +42,30 @@ router.post("/register", async(req, res) => {
 });
 
 // get user all infomation by userID
-router.get("/get_user/:userID", async(req, res) => {
-    const { email, name } = req.query;
+router.get("/user/:userID", async(req, res) => {
     const userID = req.params.userID;
     try {
-        const userRef = db.collection('Users');
-        const response = await userRef.get().where("userID", "==", userID).where("email", "==", email).where("name", "==", name);
+        const userRef = db.collection('Users').doc(userID);
+        const response = await userRef.get();
         res.status(200).send({ status: "OK", data: response.data() });
     } catch (error) {
         res.status(400).send({ status: "ERROR", data: "", error: error.toString() });
     }
 });
 
-// update user diet preferences
-router.post("/update_user_preferences", async(req, res) => {
-    const { userID, preferences } = req.body;
-    const userRef = db.collection('Users').doc();
-    const userDoc = await userRef.get().where("userID", "==", userID);
+// update user
+router.put("/user/:userID", async(req, res) => {
+    const { userID } = req.params;
+    const { name, image, email, preferences } = req.body;
+    const payload = {}
+    if (name) payload.name = name;
+    if (image) payload.image = image;
+    if (email) payload.email = email;
+    if (preferences && preferences.dietaryRestriction) payload['preferences.dietaryRestriction'] = preferences.dietaryRestriction;
+    if (preferences && preferences.expireNotification) payload['preferences.expireNotification'] = preferences.expireNotification;
+    const userRef = db.collection('Users').doc(userID);
     try {
-        const response = await userDoc.update({ preferences: preferences });
+        const response = await userRef.update(payload);
         res.status(200).send({ status: "OK", data: response });
     } catch (error) {
         res.status(400).send({ status: "ERROR", data: "", error: error.toString() });
@@ -65,8 +73,8 @@ router.post("/update_user_preferences", async(req, res) => {
 });
 
 // pinned recipes to user by userID and recipeID
-router.post("/pin_recipe", async(req, res) => {
-    const { userID, recipeID } = req.body;
+router.post("/user/:userID/pin_recipe/:recipeID", async(req, res) => {
+    const { userID, recipeID } = req.params;
     const userRef = db.collection('Users').doc();
     const userDoc = await userRef.get().where("userID", "==", userID);
     try {
@@ -78,8 +86,8 @@ router.post("/pin_recipe", async(req, res) => {
 });
 
 // unpinned recipes by userID and recipeID
-router.put("/unpin_recipe", async(req, res) => {
-    const { userID, recipeID } = req.body;
+router.put("/user/:userID/pin_recipe/:recipeID", async(req, res) => {
+    const { userID, recipeID } = req.params;
     const userRef = db.collection('Users').doc();
     const userDoc = await userRef.get().where("userID", "==", userID);
     try {
