@@ -40,9 +40,11 @@ router.post("/common_ingredient", async (req, res) => {
 	};
 	const docRef = db.collection("Ingredient").doc();
 	try {
-		const response = await docRef
+		let response = await docRef
 			.set(payload)
 			.then(() => {
+				response.action = "create";
+				response.doc = docRef.id;
 				res.status(200).send({ status: "OK", data: response });
 			})
 			.catch((error) => {
@@ -62,7 +64,7 @@ router.get("/common_ingredient/search", async (req, res) => {
 	const { name } = req.query;
 
 	try {
-		const response = await ingredientIndex.search(name);
+		let response = await ingredientIndex.search(name);
 		res.status(200).send({ status: "OK", data: response.hits });
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", data: "", error: error });
@@ -74,7 +76,7 @@ router.get("/common_ingredient/:fdcId", async (req, res) => {
 	const fdcId = Number(req.params.fdcId);
 	try {
 		const docRef = db.collection("Ingredient");
-		const response = await docRef.where("fdcId", "==", fdcId).get();
+		let response = await docRef.where("fdcId", "==", fdcId).get();
 		res.status(200).send({
 			status: "OK",
 			data: response.docs[0].data(),
@@ -119,10 +121,10 @@ router.put("/common_ingredient/:fdcId", async (req, res) => {
 		const snapshot = await docRef.where("fdcId", "==", fdcId).limit(1).get();
 		if (!snapshot.empty) {
 			const doc = snapshot.docs[0];
-			await doc.ref.update(payload);
-			res
-				.status(200)
-				.send({ status: "OK", data: "Document updated successfully" });
+			let response = await doc.ref.update(payload);
+			response.action = "update";
+			response.doc = doc.id;
+			res.status(200).send({ status: "OK", data: response });
 		} else {
 			res
 				.status(404)
@@ -139,14 +141,15 @@ router.delete("/common_ingredient/:fdcId", async (req, res) => {
 	const docRef = db.collection("Ingredient");
 	try {
 		const snapshot = await docRef.where("fdcId", "==", fdcId).get();
-		const batch = db.batch();
-		snapshot.docs.forEach((doc) => {
-			batch.delete(doc.ref);
-		});
-		await batch.commit();
-		res
-			.status(200)
-			.send({ status: "OK", data: "Documents deleted successfully" });
+		if (!snapshot.empty) {
+			const doc = snapshot.docs[0];
+			let response = await doc.ref.delete();
+			response.action = "delete";
+			response.doc = doc.id;
+			res.status(200).send({ status: "OK", data: response });
+		} else {
+			res.status(404).send({ status: "ERROR", error: "No document found" });
+		}
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
 	}

@@ -42,14 +42,16 @@ router.post("/recipes", async (req, res) => {
 	try {
 		const docRef = db.collection("Recipes").doc();
 		payload.recipeID = docRef.id;
-		const response1 = await docRef.set(payload);
+		let response = await docRef.set(payload);
 		const ingredientsRef = docRef.collection("Ingredients");
 		for (const ingredient of ingredients) {
 			const ingredientRef = ingredientsRef.doc();
 			ingredient.ingredientId = ingredientRef.id;
 			await ingredientRef.set(ingredient);
 		}
-		res.status(200).send({ status: "OK", data: response1 });
+		response.action = "create";
+		response.doc = docRef.id;
+		res.status(200).send({ status: "OK", data: response });
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
 	}
@@ -57,21 +59,33 @@ router.post("/recipes", async (req, res) => {
 
 // search for recipes by name and/or ingredients
 router.get("/recipes/search", async (req, res) => {
-	const { name, tags, match, cookTime, userID } = req.query;
+	let { name, tags, match, cookTime, userID } = req.query;
+	if (tags) {
+		tags = JSON.parse(tags);
+		tags = tags.map((tag) => `tags:${tag}`);
+	}
+	if (match) match = JSON.parse(match);
+	let numericFilters = [];
+	if (cookTime) {
+		cookTime = JSON.parse(cookTime);
+		numericFilters.push(`cookTime<=${cookTime}`);
+	}
+
 	try {
 		const userIngredientRef = db
 			.collection("Users")
 			.doc(userID)
-			.collection("ingredient");
+			.collection("Ingredient");
 		const userIngredientsSnapshot = await userIngredientRef.get();
 		const userIngredients = userIngredientsSnapshot.docs.map((doc) =>
 			doc.data()
 		);
-		const recipesSnapshot = await recipesIndex.search(name, {
-			facetFilters: tags,
+		const recipesSnapshot = await recipesIndex.search(name || "", {
+			facetFilters: tags || [],
+			numericFilters: numericFilters,
 		});
 
-		if (!match) {
+		if (match) {
 			const matchingRecipes = [];
 			for (let recipeDoc of recipesSnapshot.hits) {
 				const recipeIngredientsRef = db
@@ -84,16 +98,22 @@ router.get("/recipes/search", async (req, res) => {
 				);
 
 				// Check if any of the recipe's ingredients are in the user's ingredients
+				const missingIngredients = [];
 				const hasMatchingIngredient = recipeIngredients.some(
-					(recipeIngredient) =>
-						userIngredients.some(
-							(userIngredient) =>
-								userIngredient.name === recipeIngredient.common_name
-						)
+					(recipeIngredient) => {
+						const match = userIngredients.some((userIngredient) => {
+							return userIngredient.name === recipeIngredient.common_name;
+						});
+						if (!match) {
+							missingIngredients.push(recipeIngredient);
+						}
+						return match;
+					}
 				);
 
 				if (hasMatchingIngredient) {
-					matchingRecipes.push(recipeDoc.data());
+					recipeDoc.missingIngredients = missingIngredients;
+					matchingRecipes.push(recipeDoc);
 				}
 			}
 			res.status(200).send({ status: "OK", data: matchingRecipes });
@@ -101,7 +121,7 @@ router.get("/recipes/search", async (req, res) => {
 			res.status(200).send({ status: "OK", data: recipesSnapshot.hits });
 		}
 	} catch (error) {
-		res.status(400).send({ status: "ERROR", error: error });
+		res.status(400).send({ status: "ERROR", error: error.toString() });
 	}
 });
 
@@ -110,12 +130,10 @@ router.get("/recipes/:recipeID", async (req, res) => {
 	const recipeID = req.params.recipeID;
 	try {
 		const docRef = db.collection("Recipes").doc(recipeID);
-		const response = await docRef.get();
+		let response = await docRef.get();
 		res.status(200).send({ status: "OK", data: response.data() });
 	} catch (error) {
-		res
-			.status(400)
-			.send({ status: "ERROR", data: "", error: error.toString() });
+		res.status(400).send({ status: "ERROR", error: error.toString() });
 	}
 });
 
@@ -143,12 +161,10 @@ router.put("/recipes/:recipeID", async (req, res) => {
 
 	try {
 		const docRef = db.collection("Recipes").doc(recipeID);
-		if (Object.keys(payload).length !== 0) {
-			const response = await docRef.update(payload);
-		}
-		res
-			.status(200)
-			.send({ status: "OK", message: "Recipe updated successfully" });
+		let response = await docRef.update(payload);
+		response.action = "update";
+		response.doc = recipeID;
+		res.status(200).send({ status: "OK", message: response });
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
 	}
@@ -157,7 +173,7 @@ router.put("/recipes/:recipeID", async (req, res) => {
 router.delete("/recipes/:recipeID", async (req, res) => {
 	const { recipeID } = req.params;
 	try {
-		const response = await db
+		let response = await db
 			.collection("Recipes")
 			.doc(recipeID)
 			.delete()
@@ -165,6 +181,8 @@ router.delete("/recipes/:recipeID", async (req, res) => {
 				console.error(error);
 				res.status(400).send({ status: "ERROR", error: error.toString() });
 			});
+		response.action = "delete";
+		response.doc = recipeID;
 		res.status(200).send({ status: "OK", data: response });
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
@@ -177,8 +195,8 @@ router.get("/recipes/:recipeID/ingredients", async (req, res) => {
 	try {
 		const docRef = db.collection("Recipes").doc(recipeID);
 		const snapshot = await docRef.collection("Ingredients").get();
-		const ingredients = snapshot.docs.map((doc) => doc.data());
-		res.status(200).send({ status: "OK", data: ingredients });
+		let response = snapshot.docs.map((doc) => doc.data());
+		res.status(200).send({ status: "OK", data: response });
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
 	}
@@ -209,7 +227,9 @@ router.post("/recipes/:recipeID/ingredients", async (req, res) => {
 		const docRef = db.collection("Recipes").doc(recipeID);
 		const ingredientRef = docRef.collection("Ingredients").doc();
 		payload.ingredientId = ingredientRef.id;
-		const response = await ingredientRef.set(payload);
+		let response = await ingredientRef.set(payload);
+		response.action = "create";
+		response.doc = ingredientRef.id;
 		res.status(200).send({ status: "OK", data: response });
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
@@ -243,11 +263,13 @@ router.put("/recipes/:recipeID/ingredients/:ingredientId", async (req, res) => {
 			.doc(recipeID)
 			.collection("Ingredients")
 			.doc(ingredientId);
-		const response = await docRef.update(payload).catch((error) => {
+		let response = await docRef.update(payload).catch((error) => {
 			console.error(error);
 			res.status(400).send({ status: "ERROR", error: error.toString() });
 		});
-		res.status(200).send({ status: "OK", message: response });
+		response.action = "update";
+		response.doc = ingredientId;
+		res.status(200).send({ status: "OK", data: response });
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
 	}
@@ -260,7 +282,7 @@ router.delete(
 		const { recipeID, ingredientId } = req.params;
 
 		try {
-			const response = await db
+			let response = await db
 				.collection("Recipes")
 				.doc(recipeID)
 				.collection("Ingredients")
@@ -270,6 +292,8 @@ router.delete(
 					console.error(error);
 					res.status(400).send({ status: "ERROR", error: error.toString() });
 				});
+			response.action = "delete";
+			response.doc = ingredientId;
 			res.status(200).send({ status: "OK", data: response });
 		} catch (error) {
 			res.status(400).send({ status: "ERROR", error: error.toString() });
@@ -280,8 +304,8 @@ router.delete(
 router.get("/setting/tags", async (req, res) => {
 	const settingRef = db.collection("Setting").doc("Tag");
 	try {
-		const doc = await settingRef.get();
-		res.status(200).send({ status: "OK", data: doc.data() });
+		const response = await settingRef.get();
+		res.status(200).send({ status: "OK", data: response.data() });
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
 	}
@@ -292,8 +316,8 @@ router.get("/recipes/:recipeID/reviews", async (req, res) => {
 	try {
 		const docRef = db.collection("Recipes").doc(recipeID).collection("Reviews");
 		const snapshot = await docRef.get();
-		const reviews = snapshot.docs.map((doc) => doc.data());
-		res.status(200).send({ status: "OK", data: reviews });
+		let response = snapshot.docs.map((doc) => doc.data());
+		res.status(200).send({ status: "OK", data: response });
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
 	}
@@ -322,7 +346,9 @@ router.post("/recipes/:recipeID/reviews", async (req, res) => {
 		const docRef = db.collection("Recipes").doc(recipeID);
 		const reviewDoc = docRef.collection("Reviews").doc();
 		payload.reviewID = reviewDoc.id;
-		const response = await reviewDoc.set(payload);
+		let response = await reviewDoc.set(payload);
+		response.action = "create";
+		response.doc = reviewDoc.id;
 		res.status(200).send({ status: "OK", data: response });
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
@@ -352,10 +378,12 @@ router.put("/recipes/:recipeID/reviews/:reviewID", async (req, res) => {
 			.doc(recipeID)
 			.collection("Reviews")
 			.doc(reviewID);
-		const response = await docRef.update(payload).catch((error) => {
+		let response = await docRef.update(payload).catch((error) => {
 			console.error(error);
 			res.status(400).send({ status: "ERROR", error: error.toString() });
 		});
+		response.action = "update";
+		response.doc = reviewID;
 		res.status(200).send({ status: "OK", message: response });
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
@@ -367,7 +395,7 @@ router.delete("/recipes/:recipeID/reviews/:reviewID", async (req, res) => {
 	const { recipeID, reviewID } = req.params;
 
 	try {
-		const response = await db
+		let response = await db
 			.collection("Recipes")
 			.doc(recipeID)
 			.collection("Reviews")
@@ -377,6 +405,8 @@ router.delete("/recipes/:recipeID/reviews/:reviewID", async (req, res) => {
 				console.error(error);
 				res.status(400).send({ status: "ERROR", error: error.toString() });
 			});
+		response.action = "delete";
+		response.doc = reviewID;
 		res.status(200).send({ status: "OK", data: response });
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });

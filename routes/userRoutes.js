@@ -29,7 +29,9 @@ router.post("/user/register", async (req, res) => {
 
 	try {
 		const userRef = db.collection("Users").doc(userID);
-		const response = await userRef.set(payload);
+		let response = await userRef.set(payload);
+		response.action = "create";
+		response.doc = userRef.id;
 		res.status(200).send({ status: "OK", data: response });
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
@@ -41,7 +43,7 @@ router.get("/user/:userID", async (req, res) => {
 	const userID = req.params.userID;
 	try {
 		const userRef = db.collection("Users").doc(userID);
-		const response = await userRef.get();
+		let response = await userRef.get();
 		res.status(200).send({ status: "OK", data: response.data() });
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
@@ -71,7 +73,9 @@ router.put("/user/:userID", async (req, res) => {
 
 	try {
 		const userRef = db.collection("Users").doc(userID);
-		const response = await userRef.update(payload);
+		let response = await userRef.update(payload);
+		response.action = "update";
+		response.doc = userRef.id;
 		res.status(200).send({ status: "OK", data: response });
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
@@ -83,9 +87,11 @@ router.post("/user/:userID/pin_recipes/:recipeID", async (req, res) => {
 	const { userID, recipeID } = req.params;
 	try {
 		const userRef = db.collection("Users").doc(userID);
-		const response = await userRef.update({
+		let response = await userRef.update({
 			pinnedRecipes: FieldValue.arrayUnion(recipeID),
 		});
+		response.action = "update";
+		response.doc = userRef.id;
 		res.status(200).send({ status: "OK", data: response });
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
@@ -97,9 +103,11 @@ router.delete("/user/:userID/pin_recipes/:recipeID", async (req, res) => {
 	const { userID, recipeID } = req.params;
 	const userRef = db.collection("Users").doc(userID);
 	try {
-		const response = await userRef.update({
+		let response = await userRef.update({
 			pinnedRecipes: FieldValue.arrayRemove(recipeID),
 		});
+		response.action = "update";
+		response.doc = userRef.id;
 		res.status(200).send({ status: "OK", data: response });
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
@@ -112,7 +120,7 @@ router.get("/user/:userID/ingredients", async (req, res) => {
 
 	try {
 		const docRef = db.collection("Users").doc(userID);
-		const response = await docRef.collection("Ingredient").get();
+		let response = await docRef.collection("Ingredient").get();
 		res
 			.status(200)
 			.send({ status: "OK", data: response.docs.map((doc) => doc.data()) });
@@ -146,10 +154,12 @@ router.post("/user/:userID/ingredients", async (req, res) => {
 
 	try {
 		const docRef = db.collection("Users").doc(userID);
-		const response = await docRef
+		let response = await docRef
 			.collection("Ingredient")
 			.doc(fcdId.toString())
 			.set(payload);
+		response.action = "create";
+		response.doc = docRef.id;
 		res.status(200).send({ status: "OK", data: response });
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
@@ -178,7 +188,7 @@ router.put("/user/:userID/ingredients/:fcdId", async (req, res) => {
 
 	try {
 		const docRef = db.collection("Users").doc(userID);
-		const response = await docRef
+		let response = await docRef
 			.collection("Ingredient")
 			.doc(fcdId.toString())
 			.update(payload)
@@ -186,6 +196,8 @@ router.put("/user/:userID/ingredients/:fcdId", async (req, res) => {
 				console.error(error);
 				res.status(400).send({ status: "ERROR", error: error.toString() });
 			});
+		response.action = "update";
+		response.doc = docRef.id;
 		res.status(200).send({ status: "OK", data: response });
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
@@ -197,7 +209,7 @@ router.delete("/user/:userID/ingredients/:fcdId", async (req, res) => {
 	const { userID, fcdId } = req.params;
 	try {
 		const docRef = db.collection("Users").doc(userID);
-		const response = await docRef
+		let response = await docRef
 			.collection("Ingredient")
 			.doc(fcdId.toString())
 			.delete()
@@ -205,6 +217,8 @@ router.delete("/user/:userID/ingredients/:fcdId", async (req, res) => {
 				console.error(error);
 				res.status(400).send({ status: "ERROR", error: error.toString() });
 			});
+		response.action = "delete";
+		response.doc = docRef.id;
 		res.status(200).send({ status: "OK", data: response });
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
