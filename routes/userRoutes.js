@@ -1,41 +1,18 @@
 const express = require("express");
 const db = require("../firebaseInit");
 const router = express.Router();
-const Joi = require("joi");
+const {
+	userSchema,
+	userUpdateSchema,
+	userIngredientSchema,
+	userIngredientUpdateSchema,
+} = require("./validator/userSchema");
 const { FieldValue } = require("firebase-admin/firestore");
 const { Timestamp } = require("firebase-admin").firestore;
 
-const schema = Joi.object({
-	userID: Joi.string().required(),
-	name: Joi.string().required(),
-	image: Joi.string().required(),
-	email: Joi.string().email().required(),
-	preferences: Joi.object({
-		dietaryRestriction: Joi.array().items(Joi.string()),
-		expireNotification: Joi.number().integer().min(0).max(7),
-	}),
-});
-
-const userIngredientSchema = Joi.object({
-	addedDate: Joi.date().optional(),
-	amount: Joi.number().required(),
-	expiredDate: Joi.date().optional(),
-	fcdId: Joi.number().required(),
-	name: Joi.string().required(),
-	unit: Joi.string().allow(null).optional(),
-});
-
-const userIngredientUpdateSchema = Joi.object({
-	addedDate: Joi.date().optional(),
-	amount: Joi.number().optional(),
-	expiredDate: Joi.date().optional(),
-	fcdId: Joi.number().optional(),
-	unit: Joi.string().allow(null).optional(),
-});
-
 // register with google account if ID does not exist
 router.post("/user/register", async (req, res) => {
-	const { error } = schema.validate(req.body, { abortEarly: false });
+	const { error } = userSchema.validate(req.body, { abortEarly: false });
 	if (error) {
 		const errors = error.details.map((err) => err.message);
 		return res.status(400).send({ status: "ERROR", error: errors });
@@ -73,8 +50,16 @@ router.get("/user/:userID", async (req, res) => {
 
 // update user
 router.put("/user/:userID", async (req, res) => {
+	const { error } = userUpdateSchema.validate(req.body, { abortEarly: false });
+
+	if (error) {
+		const errors = error.details.map((err) => err.message);
+		return res.status(400).send({ status: "ERROR", error: errors });
+	}
+
 	const { userID } = req.params;
 	const { name, image, email, preferences } = req.body;
+
 	const payload = {};
 	if (name) payload.name = name;
 	if (image) payload.image = image;
@@ -83,6 +68,7 @@ router.put("/user/:userID", async (req, res) => {
 		payload["preferences.dietaryRestriction"] = preferences.dietaryRestriction;
 	if (preferences && preferences.expireNotification)
 		payload["preferences.expireNotification"] = preferences.expireNotification;
+
 	try {
 		const userRef = db.collection("Users").doc(userID);
 		const response = await userRef.update(payload);

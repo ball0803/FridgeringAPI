@@ -1,49 +1,13 @@
 const express = require("express");
 const db = require("../firebaseInit");
 const router = express.Router();
-const Joi = require("joi");
-const algoliasearch = require("algoliasearch");
-const client = algoliasearch("KR6AEAAQVV", "14c2bf68187cae21dfce2cab13e74ba9");
-const index = client.initIndex("Ingredient");
-async function indexData() {
-	try {
-		const docRef = db.collection("Ingredient");
-		const snapshot = await docRef.get();
-		const batch = snapshot.docs.map((doc) => {
-			let data = doc.data();
-			data.objectID = doc.id;
-			return data;
-		});
+const { ingredientIndex } = require("../algoliaInit");
+const {
+	commonIngredientSchema,
+	commonIngredientUpdateSchema,
+} = require("./validator/ingredientSchema");
 
-		await index.saveObjects(batch); // add await here if saveObjects returns a promise
-	} catch (error) {
-		console.error("Error indexing data:", error);
-	}
-}
-
-indexData();
-
-const commonIngredientSchema = Joi.object({
-	description: Joi.string().required(),
-	foodNutritients: Joi.array().items(Joi.object()),
-	foodAttributes: Joi.array().items(Joi.object()),
-	fdcId: Joi.number().required(),
-	inputFoods: Joi.array().items(Joi.object()),
-	foodPortions: Joi.array().items(Joi.object()),
-	foodCategory: Joi.object().required(),
-	ndbNumber: Joi.number().required(),
-});
-
-const commonIngredientUpdateSchema = Joi.object({
-	description: Joi.string().optional(),
-	foodNutritients: Joi.array().items(Joi.object()).optional(),
-	foodAttributes: Joi.array().items(Joi.object()).optional(),
-	inputFoods: Joi.array().items(Joi.object()).optional(),
-	foodPortions: Joi.array().items(Joi.object()).optional(),
-	foodCategory: Joi.object().optional(),
-});
-
-// get common ingredient by ingredientID
+// added common ingredient by ingredientID
 router.post("/common_ingredient", async (req, res) => {
 	const { error } = commonIngredientSchema.validate(req.body, {
 		abortEarly: false,
@@ -93,8 +57,35 @@ router.post("/common_ingredient", async (req, res) => {
 	}
 });
 
+// search for common ingredients by name
+router.get("/common_ingredient/search", async (req, res) => {
+	const { name } = req.query;
+
+	try {
+		const response = await ingredientIndex.search(name);
+		res.status(200).send({ status: "OK", data: response.hits });
+	} catch (error) {
+		res.status(400).send({ status: "ERROR", data: "", error: error });
+	}
+});
+
+// serach for common ingredients by fdcId
+router.get("/common_ingredient/:fdcId", async (req, res) => {
+	const fdcId = Number(req.params.fdcId);
+	try {
+		const docRef = db.collection("Ingredient");
+		const response = await docRef.where("fdcId", "==", fdcId).get();
+		res.status(200).send({
+			status: "OK",
+			data: response.docs[0].data(),
+		});
+	} catch (error) {
+		res.status(400).send({ status: "ERROR", error: error.toString() });
+	}
+});
+
 // update common ingredient by ingredientID
-router.put("/common_ingredient/:ndbNumber", async (req, res) => {
+router.put("/common_ingredient/:fdcId", async (req, res) => {
 	const { error } = commonIngredientUpdateSchema.validate(req.body, {
 		abortEarly: false,
 	});
@@ -112,7 +103,8 @@ router.put("/common_ingredient/:ndbNumber", async (req, res) => {
 		foodPortions,
 		foodCategory,
 	} = req.body;
-	const { ndbNumber } = req.params;
+
+	const fdcId = Number(req.params.fdcId);
 	const payload = {
 		description: description,
 		foodNutritients: foodNutritients,
@@ -122,40 +114,41 @@ router.put("/common_ingredient/:ndbNumber", async (req, res) => {
 		foodCategory: foodCategory,
 	};
 
-	const docRef = db.collection("Ingredient").doc();
+	const docRef = db.collection("Ingredient");
 	try {
-		const response = await docRef
-			.where("ndbNumber", "=", ndbNumber)
-			.update(payload);
-		res.status(200).send({ status: "OK", data: response });
-	} catch (error) {
-		res
-			.status(400)
-			.send({ status: "ERROR", data: "", error: error.toString() });
-	}
-});
-
-// delete common ingredient by ingredientID
-router.delete("/common_ingredient/:ndbNumber", async (req, res) => {
-	const { ndbNumber } = req.params;
-	const docRef = db.collection("Ingredient").doc();
-	try {
-		const response = await docRef.where("ndbNumber", "=", ndbNumber).delete();
-		res.status(200).send({ status: "OK", data: response });
+		const snapshot = await docRef.where("fdcId", "==", fdcId).limit(1).get();
+		if (!snapshot.empty) {
+			const doc = snapshot.docs[0];
+			await doc.ref.update(payload);
+			res
+				.status(200)
+				.send({ status: "OK", data: "Document updated successfully" });
+		} else {
+			res
+				.status(404)
+				.send({ status: "ERROR", error: "No matching document found" });
+		}
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
 	}
 });
 
-// search for common ingredients by name
-router.get("/common_ingredients/search", async (req, res) => {
-	const { name } = req.query;
-
+// delete common ingredient by ingredientID
+router.delete("/common_ingredient/:fdcId", async (req, res) => {
+	const fdcId = Number(req.params.fdcId);
+	const docRef = db.collection("Ingredient");
 	try {
-		const response = await index.search(name);
-		res.status(200).send({ status: "OK", data: response.hits });
+		const snapshot = await docRef.where("fdcId", "==", fdcId).get();
+		const batch = db.batch();
+		snapshot.docs.forEach((doc) => {
+			batch.delete(doc.ref);
+		});
+		await batch.commit();
+		res
+			.status(200)
+			.send({ status: "OK", data: "Documents deleted successfully" });
 	} catch (error) {
-		res.status(400).send({ status: "ERROR", data: "", error: error });
+		res.status(400).send({ status: "ERROR", error: error.toString() });
 	}
 });
 
