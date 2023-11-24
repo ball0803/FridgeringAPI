@@ -40,18 +40,14 @@ router.post("/common_ingredient", async (req, res) => {
 	};
 	const docRef = db.collection("Ingredient").doc();
 	try {
-		let response = await docRef
-			.set(payload)
-			.then(() => {
-				response.action = "create";
-				response.doc = docRef.id;
-				res.status(200).send({ status: "OK", data: response });
-			})
-			.catch((error) => {
-				res
-					.status(400)
-					.send({ status: "ERROR", data: "", error: error.toString() });
-			});
+		let response = await docRef.set(payload).catch((error) => {
+			res
+				.status(400)
+				.send({ status: "ERROR", data: "", error: error.toString() });
+		});
+		response.action = "create";
+		response.doc = docRef.id;
+		res.status(200).send({ status: "OK", data: response });
 	} catch (error) {
 		res
 			.status(400)

@@ -82,6 +82,20 @@ router.put("/user/:userID", async (req, res) => {
 	}
 });
 
+// delete user by userID
+router.delete("/user/:userID", async (req, res) => {
+	const userID = req.params.userID;
+	try {
+		const userRef = db.collection("Users").doc(userID);
+		let response = await userRef.delete();
+		response.action = "delete";
+		response.doc = userRef.id;
+		res.status(200).send({ status: "OK", data: response });
+	} catch (error) {
+		res.status(400).send({ status: "ERROR", error: error.toString() });
+	}
+});
+
 // pinned recipes to user by userID and recipeID
 router.post("/user/:userID/pin_recipes/:recipeID", async (req, res) => {
 	const { userID, recipeID } = req.params;
