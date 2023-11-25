@@ -43,8 +43,12 @@ router.get("/user/:userID", async (req, res) => {
 	const userID = req.params.userID;
 	try {
 		const userRef = db.collection("Users").doc(userID);
-		let response = await userRef.get();
-		res.status(200).send({ status: "OK", data: response.data() });
+		const doc = await userRef.get();
+		if (!doc.exists) {
+			res.status(404).send({ status: "ERROR", error: "User not found" });
+		} else {
+			res.status(200).send({ status: "OK", data: doc.data() });
+		}
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
 	}
@@ -74,6 +78,7 @@ router.put("/user/:userID", async (req, res) => {
 	try {
 		const userRef = db.collection("Users").doc(userID);
 		const doc = await userRef.get();
+
 		if (!doc.exists) {
 			return res
 				.status(404)
