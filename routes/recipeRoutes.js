@@ -358,11 +358,9 @@ router.post("/recipes/:recipeID/reviews", async (req, res) => {
 // update review by recipeID
 router.put("/recipes/:recipeID/reviews/:reviewID", async (req, res) => {
 	const { recipeID, reviewID } = req.params;
-	const { image, name, rating, text } = req.body;
+	const { rating, text } = req.body;
 
 	let payload = {};
-	if (image !== undefined) payload.image = image;
-	if (name !== undefined) payload.name = name;
 	if (rating !== undefined) payload.rating = rating;
 	if (text !== undefined) payload.text = text;
 

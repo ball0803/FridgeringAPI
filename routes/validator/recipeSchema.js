@@ -48,8 +48,6 @@ const reviewSchema = Joi.object({
 });
 
 const reviewUpdateSchema = Joi.object({
-	image: Joi.string().uri().optional(),
-	name: Joi.string().optional(),
 	rating: Joi.number().integer().min(0).max(5).optional(),
 	text: Joi.string().optional(),
 });

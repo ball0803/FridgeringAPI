@@ -239,4 +239,43 @@ router.delete("/user/:userID/ingredients/:fcdId", async (req, res) => {
 	}
 });
 
+// add user ingredient pin by userID
+router.post("/user/:userID/pin_ingredients/:fcdId", async (req, res) => {
+	let { userID, fcdId } = req.params;
+	if (fcdId) {
+		fcdId = parseInt(fcdId);
+	}
+
+	try {
+		const docRef = db.collection("Users").doc(userID);
+		let response = await docRef.update({
+			pinnedIngredients: FieldValue.arrayUnion(fcdId),
+		});
+		response.action = "update";
+		response.doc = docRef.id;
+		res.status(200).send({ status: "OK", data: response });
+	} catch (error) {
+		res.status(400).send({ status: "ERROR", error: error.toString() });
+	}
+});
+
+// delete user ingredient pin by userID
+router.delete("/user/:userID/pin_ingredients/:fcdId", async (req, res) => {
+	let { userID, fcdId } = req.params;
+	if (fcdId) {
+		fcdId = parseInt(fcdId);
+	}
+	try {
+		const docRef = db.collection("Users").doc(userID);
+		let response = await docRef.update({
+			pinnedIngredients: FieldValue.arrayRemove(fcdId),
+		});
+		response.action = "update";
+		response.doc = docRef.id;
+		res.status(200).send({ status: "OK", data: response });
+	} catch (error) {
+		res.status(400).send({ status: "ERROR", error: error.toString() });
+	}
+});
+
 module.exports = router;
