@@ -72,11 +72,15 @@ router.get("/common_ingredient/:fdcId", async (req, res) => {
 	const fdcId = Number(req.params.fdcId);
 	try {
 		const docRef = db.collection("Ingredient");
-		let response = await docRef.where("fdcId", "==", fdcId).get();
-		res.status(200).send({
-			status: "OK",
-			data: response.docs[0].data(),
-		});
+		const response = await docRef.where("fdcId", "==", fdcId).get();
+		if (response.empty) {
+			res.status(404).send({ status: "ERROR", error: "Ingredient not found" });
+		} else {
+			res.status(200).send({
+				status: "OK",
+				data: response.docs[0].data(),
+			});
+		}
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
 	}

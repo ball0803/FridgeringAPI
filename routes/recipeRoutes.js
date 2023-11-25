@@ -130,8 +130,12 @@ router.get("/recipes/:recipeID", async (req, res) => {
 	const recipeID = req.params.recipeID;
 	try {
 		const docRef = db.collection("Recipes").doc(recipeID);
-		let response = await docRef.get();
-		res.status(200).send({ status: "OK", data: response.data() });
+		const doc = await docRef.get();
+		if (!doc.exists) {
+			res.status(404).send({ status: "ERROR", error: "Recipe not found" });
+		} else {
+			res.status(200).send({ status: "OK", data: doc.data() });
+		}
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
 	}
@@ -161,10 +165,15 @@ router.put("/recipes/:recipeID", async (req, res) => {
 
 	try {
 		const docRef = db.collection("Recipes").doc(recipeID);
-		let response = await docRef.update(payload);
-		response.action = "update";
-		response.doc = recipeID;
-		res.status(200).send({ status: "OK", message: response });
+		const doc = await docRef.get();
+		if (!doc.exists) {
+			res.status(404).send({ status: "ERROR", error: "Recipe not found" });
+		} else {
+			let response = await docRef.update(payload);
+			response.action = "update";
+			response.doc = recipeID;
+			res.status(200).send({ status: "OK", message: response });
+		}
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
 	}
@@ -194,9 +203,14 @@ router.get("/recipes/:recipeID/ingredients", async (req, res) => {
 	const { recipeID } = req.params;
 	try {
 		const docRef = db.collection("Recipes").doc(recipeID);
-		const snapshot = await docRef.collection("Ingredients").get();
-		let response = snapshot.docs.map((doc) => doc.data());
-		res.status(200).send({ status: "OK", data: response });
+		const doc = await docRef.get();
+		if (!doc.exists) {
+			res.status(404).send({ status: "ERROR", error: "Recipe not found" });
+		} else {
+			const snapshot = await docRef.collection("Ingredients").get();
+			let response = snapshot.docs.map((doc) => doc.data());
+			res.status(200).send({ status: "OK", data: response });
+		}
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
 	}
@@ -225,12 +239,17 @@ router.post("/recipes/:recipeID/ingredients", async (req, res) => {
 	};
 	try {
 		const docRef = db.collection("Recipes").doc(recipeID);
-		const ingredientRef = docRef.collection("Ingredients").doc();
-		payload.ingredientId = ingredientRef.id;
-		let response = await ingredientRef.set(payload);
-		response.action = "create";
-		response.doc = ingredientRef.id;
-		res.status(200).send({ status: "OK", data: response });
+		const doc = await docRef.get();
+		if (!doc.exists) {
+			res.status(404).send({ status: "ERROR", error: "Recipe not found" });
+		} else {
+			const ingredientRef = docRef.collection("Ingredients").doc();
+			payload.ingredientId = ingredientRef.id;
+			let response = await ingredientRef.set(payload);
+			response.action = "create";
+			response.doc = ingredientRef.id;
+			res.status(200).send({ status: "OK", data: response });
+		}
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
 	}
@@ -263,13 +282,20 @@ router.put("/recipes/:recipeID/ingredients/:ingredientId", async (req, res) => {
 			.doc(recipeID)
 			.collection("Ingredients")
 			.doc(ingredientId);
-		let response = await docRef.update(payload).catch((error) => {
-			console.error(error);
-			res.status(400).send({ status: "ERROR", error: error.toString() });
-		});
-		response.action = "update";
-		response.doc = ingredientId;
-		res.status(200).send({ status: "OK", data: response });
+		const doc = await docRef.get();
+		if (!doc.exists) {
+			res
+				.status(404)
+				.send({ status: "ERROR", error: "Ingredient or Recipes not found" });
+		} else {
+			let response = await docRef.update(payload).catch((error) => {
+				console.error(error);
+				res.status(400).send({ status: "ERROR", error: error.toString() });
+			});
+			response.action = "update";
+			response.doc = ingredientId;
+			res.status(200).send({ status: "OK", data: response });
+		}
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
 	}
@@ -314,10 +340,16 @@ router.get("/setting/tags", async (req, res) => {
 router.get("/recipes/:recipeID/reviews", async (req, res) => {
 	const { recipeID } = req.params;
 	try {
-		const docRef = db.collection("Recipes").doc(recipeID).collection("Reviews");
-		const snapshot = await docRef.get();
-		let response = snapshot.docs.map((doc) => doc.data());
-		res.status(200).send({ status: "OK", data: response });
+		const recipeRef = db.collection("Recipes").doc(recipeID);
+		const recipeDoc = await recipeRef.get();
+		if (!recipeDoc.exists) {
+			res.status(404).send({ status: "ERROR", error: "Recipe not found" });
+		} else {
+			const reviewsRef = recipeRef.collection("Reviews");
+			const reviewsSnapshot = await reviewsRef.get();
+			let response = reviewsSnapshot.docs.map((doc) => doc.data());
+			res.status(200).send({ status: "OK", data: response });
+		}
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
 	}
@@ -344,12 +376,17 @@ router.post("/recipes/:recipeID/reviews", async (req, res) => {
 	};
 	try {
 		const docRef = db.collection("Recipes").doc(recipeID);
-		const reviewDoc = docRef.collection("Reviews").doc();
-		payload.reviewID = reviewDoc.id;
-		let response = await reviewDoc.set(payload);
-		response.action = "create";
-		response.doc = reviewDoc.id;
-		res.status(200).send({ status: "OK", data: response });
+		const doc = await docRef.get();
+		if (!doc.exists) {
+			res.status(404).send({ status: "ERROR", error: "Recipe not found" });
+		} else {
+			const reviewDoc = docRef.collection("Reviews").doc();
+			payload.reviewID = reviewDoc.id;
+			let response = await reviewDoc.set(payload);
+			response.action = "create";
+			response.doc = reviewDoc.id;
+			res.status(200).send({ status: "OK", data: response });
+		}
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
 	}
@@ -376,13 +413,20 @@ router.put("/recipes/:recipeID/reviews/:reviewID", async (req, res) => {
 			.doc(recipeID)
 			.collection("Reviews")
 			.doc(reviewID);
-		let response = await docRef.update(payload).catch((error) => {
-			console.error(error);
-			res.status(400).send({ status: "ERROR", error: error.toString() });
-		});
-		response.action = "update";
-		response.doc = reviewID;
-		res.status(200).send({ status: "OK", message: response });
+		const doc = await docRef.get();
+		if (!doc.exists) {
+			res
+				.status(404)
+				.send({ status: "ERROR", error: "Review or Recipes not found" });
+		} else {
+			let response = await docRef.update(payload).catch((error) => {
+				console.error(error);
+				res.status(400).send({ status: "ERROR", error: error.toString() });
+			});
+			response.action = "update";
+			response.doc = reviewID;
+			res.status(200).send({ status: "OK", message: response });
+		}
 	} catch (error) {
 		res.status(400).send({ status: "ERROR", error: error.toString() });
 	}
