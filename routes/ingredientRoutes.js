@@ -27,6 +27,7 @@ router.post("/common_ingredient", async (req, res) => {
 		foodPortions,
 		foodCategory,
 		ndbNumber,
+		image,
 	} = req.body;
 	const payload = {
 		description: description,
@@ -38,6 +39,9 @@ router.post("/common_ingredient", async (req, res) => {
 		foodCategory: foodCategory,
 		ndbNumber: ndbNumber,
 	};
+	if (image) {
+		payload.image = image;
+	}
 	const docRef = db.collection("Ingredient").doc();
 	try {
 		let response = await docRef.set(payload).catch((error) => {
@@ -104,17 +108,18 @@ router.put("/common_ingredient/:fdcId", async (req, res) => {
 		inputFoods,
 		foodPortions,
 		foodCategory,
+		image,
 	} = req.body;
 
 	const fdcId = Number(req.params.fdcId);
-	const payload = {
-		description: description,
-		foodNutritients: foodNutritients,
-		foodAttributes: foodAttributes,
-		inputFoods: inputFoods,
-		foodPortions: foodPortions,
-		foodCategory: foodCategory,
-	};
+	const payload = {};
+	if (description) payload.description = description;
+	if (foodNutritients) payload.foodNutritients = foodNutritients;
+	if (foodAttributes) payload.foodAttributes = foodAttributes;
+	if (inputFoods) payload.inputFoods = inputFoods;
+	if (foodPortions) payload.foodPortions = foodPortions;
+	if (foodCategory) payload.foodCategory = foodCategory;
+	if (image) payload.image = image;
 
 	const docRef = db.collection("Ingredient");
 	try {
