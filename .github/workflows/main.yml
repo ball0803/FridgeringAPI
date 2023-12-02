@@ -16,7 +16,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v2
         with:
-          node-version: "14"
+          node-version: "16"
 
       - name: Install dependencies
         run: npm install
@@ -54,7 +54,7 @@ jobs:
           echo "$HOME/.fly/bin" >> $GITHUB_PATH
 
       - name: Verify Fly CLI
-        run: flyctl --version
+        run: flyctl version
 
       - name: Deploy to Fly.io
         run: flyctl deploy --remote-only
