@@ -51,11 +51,13 @@ jobs:
       - name: Set up Fly CLI
         run: |
           curl -fsSL https://fly.io/install.sh | sh
-          flyctl --version
+          echo "$HOME/.fly/bin" >> $GITHUB_PATH
 
-      - uses: actions/checkout@v3
-      - uses: superfly/flyctl-actions/setup-flyctl@master
-      - run: flyctl deploy --remote-only
+      - name: Verify Fly CLI
+        run: flyctl --version
+
+      - name: Deploy to Fly.io
+        run: flyctl deploy --remote-only
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
