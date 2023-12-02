@@ -41,25 +41,13 @@ jobs:
         run: npm run test:postman
 
   deploy:
+    name: Deploy app
     runs-on: ubuntu-latest
     needs: test
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Set up Fly CLI
-        run: |
-          curl -fsSL https://fly.io/install.sh | sh
-          echo "$HOME/.fly/bin" >> $GITHUB_PATH
-
-      - name: Verify Fly CLI
-        run: flyctl version
-
-      - name: Setup Flyctl
-        uses: superfly/flyctl-actions/setup-flyctl@master
-
-      - name: Deploy to Fly.io
-        run: flyctl deploy --remote-only
-        with:
-          api-token: ${{ secrets.FLY_API_TOKEN }}
+      - uses: actions/checkout@v3
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
