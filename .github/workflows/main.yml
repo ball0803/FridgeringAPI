@@ -56,11 +56,10 @@ jobs:
       - name: Verify Fly CLI
         run: flyctl version
 
-      - name: Deploy to Fly.io
+      - name: Setup Flyctl
         uses: superfly/flyctl-actions/setup-flyctl@master
-        run: flyctl deploy --remote-only
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        with:
+          api-token: ${{ secrets.FLY_API_TOKEN }}
 
-      - name: Confirm deployment
-        run: flyctl status
+      - name: Deploy to Fly.io
+        run: flyctl deploy --remote-only
