@@ -9,9 +9,12 @@ const client = algoliasearch(
 const recipesIndex = client.initIndex("Recipes");
 const ingredientIndex = client.initIndex("Ingredient");
 
-async function indexData(index, collectionName) {
+async function indexData(index, collectionName, searchableAttributes) {
 	try {
-		await index.setSettings({ attributesForFaceting: ["tags"] });
+		await index.setSettings({
+			attributesForFaceting: ["tags"],
+			searchableAttributes: searchableAttributes,
+		});
 		const docRef = db.collection(collectionName);
 		const snapshot = await docRef.get();
 		const batch = snapshot.docs.map((doc) => {
@@ -26,7 +29,7 @@ async function indexData(index, collectionName) {
 	}
 }
 
-indexData(recipesIndex, "Recipes");
-indexData(ingredientIndex, "Ingredient");
+indexData(recipesIndex, "Recipes", ["name"]);
+indexData(ingredientIndex, "Ingredient", ["description"]);
 
 module.exports = { recipesIndex, ingredientIndex };
