@@ -11,10 +11,20 @@ const ingredientIndex = client.initIndex("Ingredient");
 
 async function indexData(index, collectionName, searchableAttributes) {
 	try {
-		await index.setSettings({
-			attributesForFaceting: ["tags"],
-			searchableAttributes: searchableAttributes,
-		});
+		const settings = await index.getSettings();
+
+		if (
+			JSON.stringify(settings.attributesForFaceting) !==
+				JSON.stringify(["tags"]) ||
+			JSON.stringify(settings.searchableAttributes) !==
+				JSON.stringify(searchableAttributes)
+		) {
+			await index.setSettings({
+				attributesForFaceting: ["tags"],
+				searchableAttributes: searchableAttributes,
+			});
+		}
+
 		const docRef = db.collection(collectionName);
 		const snapshot = await docRef.get();
 		const batch = snapshot.docs.map((doc) => {
