@@ -10,6 +10,7 @@ const recipesIndex = client.initIndex("Recipes");
 const ingredientIndex = client.initIndex("Ingredient");
 
 async function indexData(index, collectionName, searchableAttributes) {
+	console.log("Indexing data for", collectionName);
 	try {
 		const settings = await index.getSettings();
 
@@ -37,11 +38,10 @@ async function indexData(index, collectionName, searchableAttributes) {
 	} catch (error) {
 		console.error(`Error indexing data for ${collectionName}:`, error);
 	}
+	console.log("Finished indexing data for", collectionName);
 }
 
-console.log("Indexing data for", collectionName);
 indexData(recipesIndex, "Recipes", ["name"]);
 indexData(ingredientIndex, "Ingredient", ["description"]);
-console.log("Finished indexing data for", collectionName);
 
 module.exports = { recipesIndex, ingredientIndex };
