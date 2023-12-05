@@ -39,7 +39,9 @@ async function indexData(index, collectionName, searchableAttributes) {
 	}
 }
 
+console.log("Indexing data for", collectionName);
 indexData(recipesIndex, "Recipes", ["name"]);
 indexData(ingredientIndex, "Ingredient", ["description"]);
+console.log("Finished indexing data for", collectionName);
 
 module.exports = { recipesIndex, ingredientIndex };
